@@ -29,7 +29,7 @@ class ForagingEnv(gym.Env):
 
         self.config = config
 
-        self.max_food = 4
+        self.max_food = 7
         self.food_reward = 100
 
         # init
@@ -46,7 +46,7 @@ class ForagingEnv(gym.Env):
                                        shape=(2,), dtype=np.float32)
         # why high and low?
         self.observation_space = spaces.Box(low=0, high=1,
-                                            shape=(17,), dtype=np.float32)
+                                            shape=(16,), dtype=np.float32)
 
         self.action_selection = ActionSelection(self.config)
 
@@ -67,6 +67,7 @@ class ForagingEnv(gym.Env):
 
         self.done = False
         self.total_success = 0
+        self.total_hurt = 0
         self.current_step = 0
         self.touched_trigger = None
 
@@ -85,13 +86,14 @@ class ForagingEnv(gym.Env):
 
         if self.config.sim_hard == 'sim':
             # degrees to radians
-            self.robot.set_phone_tilt(1*math.pi/180)#55
+            self.robot.set_phone_tilt(30*math.pi/180)#55
         else:
             self.robot.set_phone_tilt(109)
 
         sensors = self.get_infrared()
+        robobo_position = self.robot.position()
         prop_green_points, color_y, color_x, prop_gray_points, color_y_gray, color_x_gray, prop_pink_points, color_y_pink, color_x_pink = self.detect_color()
-        sensors = np.append(sensors, [color_y, color_x, prop_green_points, color_y_gray, color_x_gray, prop_gray_points, color_y_pink, color_x_pink, prop_pink_points])
+        sensors = np.append(sensors, [color_y, color_x, prop_green_points, color_y_gray, color_x_gray, prop_gray_points,  robobo_position[0], robobo_position[1]]) #color_y_pink, color_x_pink, prop_pink_points,
         sensors = np.array(sensors).astype(np.float32)
 
         return sensors
@@ -114,7 +116,7 @@ class ForagingEnv(gym.Env):
         prop_green_points, color_y, color_x, prop_gray_points, color_y_gray, color_x_gray, prop_pink_points, color_y_pink, color_x_pink = self.detect_color(human_actions)
 
         if self.config.sim_hard == 'sim':
-            collected_food, aux = self.robot.collected_food()
+            collected_food, robobo_hit_wall_position = self.robot.collected_food()
         else:
             collected_food = 0
 
@@ -142,33 +144,50 @@ class ForagingEnv(gym.Env):
             food_reward = 0
 
         self.total_success = collected_food
-        
+
+        finished_first_task_reward = 0
+        if self.total_success == 4:
+            finished_first_task_reward = 5
+
+        hit_wall_penalty = 0
+        # if x and y are different than 0 which is the default value
+        if robobo_hit_wall_position[0] and robobo_hit_wall_position[1]:
+            self.total_hurt += 1
+            hit_wall_penalty = -5    
         # green sight
         if prop_green_points > 0:
-            sight = prop_green_points
+            sight = prop_green_points * 10
         else:
             sight = -0.1
-        # pink sight
-        if prop_pink_points > 0:
-            pink_sight = prop_pink_points
-        else:
-            pink_sight = -0.1
         
-        combined_sight = 0
-        touched_trigger_reward = 0
-        if self.touched_trigger:
-            # green&pink sight
-            if prop_green_points > 0 and prop_pink_points > 0:
-                combined_sight = (prop_green_points + prop_pink_points) * 100
-            else:
-                combined_sight = -0.1
-            touched_trigger_reward = 50
+        robobo_position = self.robot.position()
+        distance = self.distance_from_start(robobo_position)
+        # pink sight
+        # if prop_pink_points > 0:
+        #     pink_sight = prop_pink_points
+        # else:
+        #     pink_sight = -0.1
+        
+        # combined_sight = 0
+        # touched_trigger_reward = 0
+        # if self.touched_trigger:
+        #     # green&pink sight
+        #     if prop_green_points > 0 and prop_pink_points > 0:
+        #         combined_sight = (prop_green_points + prop_pink_points) * 100
+        #     else:
+        #         combined_sight = -0.1
+        #     touched_trigger_reward = 50
                         
         # distance = math.sqrt((self.robot.position()[0] - (-3)) ** 2 + (self.robot.position()[1] - 1.625) ** 2)
         # distance_reward = (4 - distance) * 10
+        distance_reward = 0
+        if distance < 0.2:
+            distance_reward = -1
+        elif distance >= 0.2:
+            distance_reward = distance * 10
             
-        sensors = np.append(sensors, [color_y, color_x, prop_green_points, color_y_gray, color_x_gray, prop_gray_points, color_y_pink, color_x_pink, prop_pink_points])
-        reward = food_reward + sight + pink_sight + combined_sight + touched_trigger_reward + touched_finish * 10000
+        sensors = np.append(sensors, [color_y, color_x, prop_green_points, color_y_gray, color_x_gray, prop_gray_points, robobo_position[0], robobo_position[1]]) #color_y_pink, color_x_pink, prop_pink_points,
+        reward = hit_wall_penalty + finished_first_task_reward + food_reward + sight + distance_reward + touched_finish * 10000 #+ pink_sight + combined_sight + touched_trigger_reward 
 
         # if episode is over
         # TODO: move this print after counter
@@ -193,6 +212,15 @@ class ForagingEnv(gym.Env):
 
     def close(self):
         pass
+
+    def distance_from_start(self, current_position):
+        x1 = current_position[0]
+        x2 = -2.5
+        y1 = current_position[1]
+        y2 = -1
+        # reward = ((((x2 - x1 )**2) + ((y2-y1)**2) )**0.5)
+        distance = (((x2 - x1 )**2) + ((y2-y1)**2))
+        return distance
 
     def get_infrared(self):
 
@@ -220,7 +248,6 @@ class ForagingEnv(gym.Env):
 
         # mask of green
         mask = cv2.inRange(hsv, (45, 70, 70), (85, 255, 255))
-       
         # mask of gray
         if self.config.sim_hard == 'hard':
             # for hardware, uses a red mask instead of gray

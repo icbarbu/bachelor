@@ -8,3 +8,5 @@ src/vrep/__pycache__/
 devel/
 install/
 supplementarymaterial/
+src/.DS_Store
+.DS_Store
