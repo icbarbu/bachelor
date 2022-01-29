@@ -10,6 +10,7 @@ import time
 import math
 import robobo
 from action_selection_c import ActionSelection
+import re
 
 # TODO: fix this?
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -40,6 +41,8 @@ class ForagingEnv(gym.Env):
         self.touched_trigger = None
         self.exp_manager = None
         self.episode_length = 0
+        self.food_setup = dict()
+        self.last_touched_food = None
 
         # Define action and sensors space
         self.action_space = spaces.Box(low=0, high=1,
@@ -70,6 +73,8 @@ class ForagingEnv(gym.Env):
         self.total_hurt = 0
         self.current_step = 0
         self.touched_trigger = None
+        self.food_setup = dict()
+        self.last_touched_food = None
 
         self.exp_manager.register_episode()
 
@@ -92,11 +97,73 @@ class ForagingEnv(gym.Env):
 
         sensors = self.get_infrared()
         robobo_position = self.robot.position()
-        prop_green_points, color_y, color_x, prop_gray_points, color_y_gray, color_x_gray, prop_pink_points, color_y_pink, color_x_pink = self.detect_color()
-        sensors = np.append(sensors, [color_y, color_x, prop_green_points, color_y_gray, color_x_gray, prop_gray_points,  robobo_position[0], robobo_position[1]]) #color_y_pink, color_x_pink, prop_pink_points,
+        prop_green_points, color_y, color_x, prop_gray_points, color_y_gray, color_x_gray = self.detect_color()
+        sensors = np.append(sensors, [color_y, color_x, prop_green_points, color_y_gray, color_x_gray, prop_gray_points,  robobo_position[0], robobo_position[1]])
         sensors = np.array(sensors).astype(np.float32)
 
+        self.initialize_food_setup()
+
         return sensors
+
+    def initialize_food_setup(self):
+        handles, positions = self.robot.get_food_setup()
+        
+        handles_pattern = re.compile(r'[0-9][0-9]')
+        positions_pattern = re.compile(r'-?[0-9].[0-9]{2,20}')
+
+        handles = handles_pattern.findall(handles)
+        positions = positions_pattern.findall(positions)
+
+        # group in 3-tuples
+        positions = list(zip(*[iter(positions)]*3))
+
+        # assign handle-position in dictionary
+        for idx, val in enumerate(handles):
+            if idx == 0:
+                self.food_setup[handles[idx]] = [positions[idx], True]
+            else:
+                self.food_setup[handles[idx]] = [positions[idx], False]
+
+    def print_food_setup(self):
+        for item in self.food_setup.items():
+            print(item)
+
+    def get_active_food(self):
+        for item in self.food_setup.items():
+            if (item[1][1]): 
+                return item
+
+    def get_active_food_position(self):
+        for item in self.food_setup.items():
+            if (item[1][1]): 
+                return item[1][0]
+    
+    def get_active_food_handle(self):
+        for item in self.food_setup.items():
+            if (item[1][1]): 
+                return item[0]
+
+    def set_next_active_food(self, key):
+        active_handle = self.get_active_food_handle()
+        active_position = self.get_active_food_position()
+        next_handle = self.which_food_next(active_handle)
+        if next_handle and key == active_handle:
+            next_position = self.food_setup[next_handle][0]
+            self.food_setup.update({active_handle: [active_position, False]})
+            self.food_setup.update({next_handle: [next_position, True]})
+        
+
+    def which_food_next(self, key):
+        if key == '18':
+            return '56'
+        elif key == '56':
+            return '57'
+        elif key == '57':
+            return '58'
+        elif key == '58':
+            return '59'
+        elif key == '59':
+            return None
 
     def normal(self, var):
         if self.config.sim_hard == 'sim':
@@ -117,6 +184,9 @@ class ForagingEnv(gym.Env):
 
         if self.config.sim_hard == 'sim':
             collected_food, robobo_hit_wall_position = self.robot.collected_food()
+            food_info, robobo_hit_wall_position = self.robot.collected_food()
+            collected_food = food_info[0]
+            last_touched_food = food_info[1]
         else:
             collected_food = 0
 
@@ -145,9 +215,19 @@ class ForagingEnv(gym.Env):
 
         self.total_success = collected_food
 
-        finished_first_task_reward = 0
-        if self.total_success == 4:
-            finished_first_task_reward = 5
+        next_goal_reward = 0
+        if (not self.last_touched_food and last_touched_food):
+            self.set_next_active_food(str(last_touched_food))
+            next_goal_reward = 1000
+        elif (self.last_touched_food and self.last_touched_food != last_touched_food):
+            self.set_next_active_food(str(last_touched_food))
+            next_goal_reward = 1000
+
+        robobo_position = self.robot.position()
+        active_food_position = self.get_active_food_position()
+        distance_reward = self.distance_from_goal(robobo_position, active_food_position[0], active_food_position[1])
+
+        # print(f"Goal :{self.get_active_food_handle()}, located at {active_food_position[0], active_food_position[1]}. \t Distance: {distance}")
 
         hit_wall_penalty = 0
         # if x and y are different than 0 which is the default value
@@ -156,38 +236,12 @@ class ForagingEnv(gym.Env):
             hit_wall_penalty = -5    
         # green sight
         if prop_green_points > 0:
-            sight = prop_green_points * 10
+            sight = prop_green_points + distance_reward
         else:
-            sight = -0.1
+            sight = -10
         
-        robobo_position = self.robot.position()
-        distance = self.distance_from_start(robobo_position)
-        # pink sight
-        # if prop_pink_points > 0:
-        #     pink_sight = prop_pink_points
-        # else:
-        #     pink_sight = -0.1
-        
-        # combined_sight = 0
-        # touched_trigger_reward = 0
-        # if self.touched_trigger:
-        #     # green&pink sight
-        #     if prop_green_points > 0 and prop_pink_points > 0:
-        #         combined_sight = (prop_green_points + prop_pink_points) * 100
-        #     else:
-        #         combined_sight = -0.1
-        #     touched_trigger_reward = 50
-                        
-        # distance = math.sqrt((self.robot.position()[0] - (-3)) ** 2 + (self.robot.position()[1] - 1.625) ** 2)
-        # distance_reward = (4 - distance) * 10
-        distance_reward = 0
-        if distance < 0.2:
-            distance_reward = -1
-        elif distance >= 0.2:
-            distance_reward = distance * 10
-            
-        sensors = np.append(sensors, [color_y, color_x, prop_green_points, color_y_gray, color_x_gray, prop_gray_points, robobo_position[0], robobo_position[1]]) #color_y_pink, color_x_pink, prop_pink_points,
-        reward = hit_wall_penalty + finished_first_task_reward + food_reward + sight + distance_reward + touched_finish * 10000 #+ pink_sight + combined_sight + touched_trigger_reward 
+        sensors = np.append(sensors, [color_y, color_x, prop_green_points, color_y_gray, color_x_gray, prop_gray_points, robobo_position[0], robobo_position[1]])
+        reward = hit_wall_penalty + food_reward + sight + touched_finish * 10000 + next_goal_reward
 
         # if episode is over
         # TODO: move this print after counter
@@ -199,11 +253,9 @@ class ForagingEnv(gym.Env):
 
         self.exp_manager.register_step(reward)
 
-        sensors = sensors.astype(np.float32)
+        self.last_touched_food = last_touched_food
 
-        # info = human_actions
-        # if len(human_actions) > 0:
-        #     self.exp_manager.human_steps.append(self.exp_manager.current_episode)
+        sensors = sensors.astype(np.float32)
 
         return sensors, reward, self.done, {}
 
@@ -213,14 +265,13 @@ class ForagingEnv(gym.Env):
     def close(self):
         pass
 
-    def distance_from_start(self, current_position):
+    def distance_from_goal(self, current_position, target_x=-2.5, target_y=-1):
         x1 = current_position[0]
-        x2 = -2.5
         y1 = current_position[1]
-        y2 = -1
-        # reward = ((((x2 - x1 )**2) + ((y2-y1)**2) )**0.5)
-        distance = (((x2 - x1 )**2) + ((y2-y1)**2))
-        return distance
+        distance = (((float(target_x) - x1 )**2) + ((float(target_y)-y1)**2))
+        nicer_distance =(((float(target_x) - x1 )**2) + ((float(target_y)-y1)**2))**0.4
+        
+        return 1/nicer_distance
 
     def get_infrared(self):
 

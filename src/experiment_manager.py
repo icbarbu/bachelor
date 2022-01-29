@@ -248,7 +248,4 @@ class ExperimentManager:
         else:
             self.results_episodes, self.results_episodes_validation, self.current_checkpoint, self.current_episode = env_data
         env2 = self.env
-        self.model = self.load(f'{dir}/model_checkpoint_{checkpoint}',
-                               '',
-                               env=env2,
-                               config=self.config)
+        self.model = self.load(f'{dir}/model_checkpoint_{checkpoint}',env=env2)

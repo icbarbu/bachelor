@@ -128,7 +128,7 @@ class ConsolidateData:
         return x.quantile(0.75)
 
 
-experiments = ["99"]
+experiments = ["6"]
 
 for experiment in experiments:
     # TODO: What does "runs" do since I can just create the data?
@@ -139,11 +139,3 @@ for experiment in experiments:
     )
 
     cd.run()
-
-
-
-
-
-
-
-

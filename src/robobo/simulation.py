@@ -412,7 +412,7 @@ class SimulationRobobo(Robobo):
             vrep.simxCallScriptFunction(self._clientID, "Food", vrep.sim_scripttype_childscript, "remote_get_collected_food",
                                         [],[],[],bytearray(),vrep.simx_opmode_blocking)
         )
-        return ints[0], [floats[0], floats[1]]
+        return [ints[0], ints[1]], [floats[0], floats[1]]
     
     def touched_finish(self):
         ints, floats, strings, buffer = vrep.unwrap_vrep(
@@ -427,5 +427,10 @@ class SimulationRobobo(Robobo):
                                         [],[],[],bytearray(),vrep.simx_opmode_blocking)
         )
         return ints[0], floats[0]
-    
-    
+
+    def get_food_setup(self):
+        ints, floats, strings, buffer = vrep.unwrap_vrep(
+            vrep.simxCallScriptFunction(self._clientID, "Food", vrep.sim_scripttype_childscript, "remote_get_initial_food_setup",
+                                        [],[],[],bytearray(),vrep.simx_opmode_blocking)
+        )
+        return strings[0], strings[1]
