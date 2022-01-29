@@ -180,7 +180,7 @@ class ForagingEnv(gym.Env):
 
         # gets states
         sensors = self.get_infrared()
-        prop_green_points, color_y, color_x, prop_gray_points, color_y_gray, color_x_gray, prop_pink_points, color_y_pink, color_x_pink = self.detect_color(human_actions)
+        prop_green_points, color_y, color_x, prop_gray_points, color_y_gray, color_x_gray = self.detect_color(human_actions)
 
         if self.config.sim_hard == 'sim':
             collected_food, robobo_hit_wall_position = self.robot.collected_food()
@@ -360,4 +360,4 @@ class ForagingEnv(gym.Env):
             avg_y_pink = 0
             avg_x_pink = 0
 
-        return prop_green_points, avg_y, avg_x, prop_gray_points, avg_y_gray, avg_x_gray, prop_pink_points, avg_y_pink, avg_x_pink
+        return prop_green_points, avg_y, avg_x, prop_gray_points, avg_y_gray, avg_x_gray
