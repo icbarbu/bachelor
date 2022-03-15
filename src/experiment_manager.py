@@ -110,14 +110,16 @@ class ExperimentManager:
                                         self.env.current_step,
                                         self.env.total_success,
                                         self.env.total_hurt,
-                                        rewards])
+                                        rewards,
+                                        self.env.total_distance])
         else:
             self.results_episodes_validation.append([
                                         self.current_episode,
                                         self.env.current_step,
                                         self.env.total_success,
                                         self.env.total_hurt,
-                                        rewards])
+                                        rewards,
+                                        self.env.total_distance])
 
 
     def food_print(self):
@@ -202,9 +204,9 @@ class ExperimentManager:
 
                     env2 = self.env
                     self.model = self.load(f'{dir}/model_checkpoint_{checkpoints[attempts]}',
-                                           f'{dir}/buffer_checkpoint_{self.current_checkpoint}',
-                                           env=env2,
-                                           config=self.config)
+                                        #    f'{dir}/buffer_checkpoint_{self.current_checkpoint}',
+                                           env=env2)
+                                        #    config=self.config)
 
                     attempts = -1
                     self.log.write(f'RECOVERED checkpoint {checkpoints[attempts]}')
