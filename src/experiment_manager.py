@@ -41,6 +41,7 @@ class CustomCallback(BaseCallback):
                 print(' validation', i, 'pos', self.experiment_manager.config.pos)
 
                 obs = self.experiment_manager.env.reset()
+                self.experiment_manager.env.robot.disable_checkpoints()
                 done = False
                 while not done:
                     action = self.experiment_manager.model.predict(obs)
@@ -54,7 +55,7 @@ class CustomCallback(BaseCallback):
                 hurt_list.append(hurt_per_episode)
 
             self.experiment_manager.config.pos = -1
-
+            
             # if self.experiment_manager.config.human_interference == 1:
             #     if self.experiment_manager.config.real_time == 1:
             #         self.experiment_manager.env.robot.stop_world()
@@ -99,12 +100,12 @@ class ExperimentManager:
         self.mode_train_validation = 'train'
 
     def register_episode(self):
-        if self.mode_train_validation == 'train':
+        if self.mode_train_validation == 'validation':
             self.current_episode += 1
 
     def register_step(self, rewards):
 
-        if self.mode_train_validation == 'train':
+        if self.mode_train_validation == 'validation':
             self.results_episodes.append([
                                         self.current_episode,
                                         self.env.current_step,
@@ -123,7 +124,7 @@ class ExperimentManager:
 
 
     def food_print(self):
-        if self.mode_train_validation == 'train':
+        if self.mode_train_validation == 'validation':
             print(f'food in episode  {self.current_episode}: {self.env.total_success}  hurt: {self.env.total_hurt} steps: {self.env.current_step}')
         else:
             print(f'   food: {self.env.total_success} hurt: {self.env.total_hurt} steps: {self.env.current_step}')

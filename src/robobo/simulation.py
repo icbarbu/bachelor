@@ -52,6 +52,12 @@ class SimulationRobobo(Robobo):
         )
 
     def initialize_handles(self):
+        self._Food = self._vrep_get_object_handle('Food{}'.format(self._value_number), vrep.simx_opmode_blocking)
+        self._Food0 = self._vrep_get_object_handle('Food0{}'.format(self._value_number), vrep.simx_opmode_blocking)
+        self._Food1 = self._vrep_get_object_handle('Food1{}'.format(self._value_number), vrep.simx_opmode_blocking)
+        self._Food2 = self._vrep_get_object_handle('Food2{}'.format(self._value_number), vrep.simx_opmode_blocking)
+        self._Food3 = self._vrep_get_object_handle('Food3{}'.format(self._value_number), vrep.simx_opmode_blocking)
+
         self._RightMotor = self._vrep_get_object_handle('Right_Motor{}'.format(self._value_number), vrep.simx_opmode_blocking)
         self._LeftMotor = self._vrep_get_object_handle('Left_Motor{}'.format(self._value_number), vrep.simx_opmode_blocking)
         self._Robobo = self._vrep_get_object_handle('Robobo{}'.format(self._value_number), vrep.simx_opmode_blocking)
@@ -401,6 +407,43 @@ class SimulationRobobo(Robobo):
             vrep.simxSetObjectPosition(self._clientID, self._Robobo, -1,
                                        positions[pos],
                                        vrep.simx_opmode_blocking)
+
+
+    def disable_checkpoints(self):
+        food_position = vrep.unwrap_vrep(
+            vrep.simxGetObjectPosition(self._clientID, self._Food, -1, vrep.simx_opmode_blocking)
+        )
+        vrep.simxSetObjectPosition(self._clientID, self._Food, -1,
+                                          [food_position[0], food_position[1], food_position[2] - 3],
+                                          vrep.simx_opmode_blocking)
+        
+        food0_position = vrep.unwrap_vrep(
+            vrep.simxGetObjectPosition(self._clientID, self._Food0, -1, vrep.simx_opmode_blocking)
+        )
+        vrep.simxSetObjectPosition(self._clientID, self._Food0, -1,
+                                          [food0_position[0], food0_position[1], food0_position[2] - 3],
+                                          vrep.simx_opmode_blocking)
+
+        food1_position = vrep.unwrap_vrep(
+            vrep.simxGetObjectPosition(self._clientID, self._Food1, -1, vrep.simx_opmode_blocking)
+        )
+        vrep.simxSetObjectPosition(self._clientID, self._Food1, -1,
+                                          [food1_position[0], food1_position[1], food1_position[2] - 3],
+                                          vrep.simx_opmode_blocking)
+
+        food2_position = vrep.unwrap_vrep(
+            vrep.simxGetObjectPosition(self._clientID, self._Food2, -1, vrep.simx_opmode_blocking)
+        )
+        vrep.simxSetObjectPosition(self._clientID, self._Food2, -1,
+                                          [food2_position[0], food2_position[1], food2_position[2] - 3],
+                                          vrep.simx_opmode_blocking)
+
+        food3_position = vrep.unwrap_vrep(
+            vrep.simxGetObjectPosition(self._clientID, self._Food3, -1, vrep.simx_opmode_blocking)
+        )
+        vrep.simxSetObjectPosition(self._clientID, self._Food3, -1,
+                                          [food3_position[0], food3_position[1], food3_position[2] - 3],
+                                          vrep.simx_opmode_blocking)
 
     def position(self):
         return vrep.unwrap_vrep(

@@ -210,13 +210,13 @@ class ForagingEnv(gym.Env):
         else:
             # final test
             self.episode_length = self.config.episode_test_steps
-
-        # calculates rewards
-        touched_finish = self.robot.touched_finish()[0]
-        touched_trigger = self.robot.touched_trigger()[0]
         
-        if touched_trigger and self.touched_trigger is None:
-            self.touched_trigger = True
+        # calculates rewards
+        try: 
+            touched_finish = self.robot.touched_finish()[0]
+        except: 
+            print('NO FINISH')
+            touched_finish = 0
 
         # if collected_food - self.total_success > 0:
         #     food_reward = self.food_reward
